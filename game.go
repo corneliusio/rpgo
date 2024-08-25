@@ -12,15 +12,16 @@ import (
 )
 
 type Game struct {
-	baseScale  float64
-	baseVector float64
-	tileSize   float64
-	camera     *Camera
-	player     *entities.Player
-	enemies    []*entities.Enemy
-	potions    []*entities.Potion
-	tilemapImg *ebiten.Image
-	tilemap    *TilemapJSON
+	baseScale   float64
+	baseVector  float64
+	tileSize    float64
+	camera      *Camera
+	player      *entities.Player
+	enemies     []*entities.Enemy
+	potions     []*entities.Potion
+	tilemapImg  *ebiten.Image
+	tilemapJSON *TilemapJSON
+	tilesets    []Tileset
 }
 
 func (g *Game) Update() error {
@@ -86,9 +87,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{120, 180, 255, 255})
 	opts := ebiten.DrawImageOptions{}
 
-	g.camera.FollowTarget(g.player.X-float64(g.tileSize/2), g.player.Y-float64(g.tileSize/2), 1280, 960)
+	g.camera.FollowTarget(
+		g.player.X-float64(g.tileSize/2),
+		g.player.Y-float64(g.tileSize/2),
+		1280,
+		960,
+	)
 
-	for n, layer := range g.tilemap.Layers {
+	for n, layer := range g.tilemapJSON.Layers {
 		if n == 0 {
 			g.camera.Constrain(
 				float64(layer.Width)*g.tileSize*g.baseScale,
@@ -99,26 +105,22 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 
 		for i, id := range layer.Data {
+			if id == 0 {
+				continue
+			}
+
 			x := float64(i % layer.Width)
 			y := float64(i / layer.Height)
 			x *= g.tileSize * g.baseScale
 			y *= g.tileSize * g.baseScale
 
-			srcX := float64((id - 1) % 22)
-			srcY := float64((id - 1) / 22)
-			srcX *= g.tileSize
-			srcY *= g.tileSize
+			image := g.tilesets[n].Image(id, g.tileSize, g.tileSize)
 
 			opts.GeoM.Scale(g.baseScale, g.baseScale)
-			opts.GeoM.Translate(float64(x), float64(y))
+			opts.GeoM.Translate(x, y)
 			opts.GeoM.Translate(g.camera.X, g.camera.Y)
 
-			screen.DrawImage(
-				g.tilemapImg.SubImage(
-					image.Rect(int(srcX), int(srcY), int(srcX+g.tileSize), int(srcY+g.tileSize)),
-				).(*ebiten.Image),
-				&opts,
-			)
+			screen.DrawImage(image, &opts)
 
 			opts.GeoM.Reset()
 		}

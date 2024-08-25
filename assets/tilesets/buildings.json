@@ -1,0 +1,73 @@
+{
+    "columns": 0,
+    "grid": {
+        "height": 1,
+        "orientation": "orthogonal",
+        "width": 1
+    },
+    "margin": 0,
+    "name": "buildings",
+    "spacing": 0,
+    "tilecount": 9,
+    "tiledversion": "1.11.0",
+    "tileheight": 64,
+    "tiles": [
+        {
+            "id": 0,
+            "image": "../images/buildings/building-9.png",
+            "imageheight": 64,
+            "imagewidth": 64
+        },
+        {
+            "id": 1,
+            "image": "../images/buildings/building-8.png",
+            "imageheight": 48,
+            "imagewidth": 48
+        },
+        {
+            "id": 2,
+            "image": "../images/buildings/building-7.png",
+            "imageheight": 48,
+            "imagewidth": 48
+        },
+        {
+            "id": 3,
+            "image": "../images/buildings/building-6.png",
+            "imageheight": 48,
+            "imagewidth": 64
+        },
+        {
+            "id": 4,
+            "image": "../images/buildings/building-5.png",
+            "imageheight": 48,
+            "imagewidth": 48
+        },
+        {
+            "id": 5,
+            "image": "../images/buildings/building-4.png",
+            "imageheight": 48,
+            "imagewidth": 64
+        },
+        {
+            "id": 6,
+            "image": "../images/buildings/building-3.png",
+            "imageheight": 48,
+            "imagewidth": 64
+        },
+        {
+            "id": 7,
+            "image": "../images/buildings/building-2.png",
+            "imageheight": 48,
+            "imagewidth": 64
+        },
+        {
+            "id": 8,
+            "image": "../images/buildings/building-1.png",
+            "imageheight": 48,
+            "imagewidth": 64
+        }
+    ],
+    "tilewidth": 64,
+    "type": "tileset",
+    "version": "1.10"
+}

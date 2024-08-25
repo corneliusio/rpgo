@@ -28,23 +28,29 @@ func main() {
 		log.Fatal(err)
 	}
 
-	tilemapImg, _, err := ebitenutil.NewImageFromFile("assets/maps/tileset-floor.png")
+	tilemapImg, _, err := ebitenutil.NewImageFromFile("assets/images/floor.png")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	tilemap, err := NewTileMapJSON("assets/maps/tilemap.json")
+	tilemap, err := NewTileMapJSON("assets/tilemap.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tilesets, err := tilemap.GenerateTilesets()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	game := Game{
-		baseScale:  ebiten.Monitor().DeviceScaleFactor() * 1.5,
-		baseVector: 3,
-		tileSize:   16,
-		tilemap:    tilemap,
-		tilemapImg: tilemapImg,
-		camera:     NewCamera(50.0, 50.0),
+		baseScale:   ebiten.Monitor().DeviceScaleFactor() * 1.5,
+		baseVector:  3,
+		tileSize:    16,
+		tilemapJSON: tilemap,
+		tilemapImg:  tilemapImg,
+		tilesets:    tilesets,
+		camera:      NewCamera(0.0, 0.0),
 		player: &entities.Player{
 			Sprite:    &entities.Sprite{Image: playerImg, X: 275.0, Y: 275.0},
 			Character: &entities.Character{MaxHealth: 100, Health: 80},
