@@ -9,7 +9,6 @@ import (
 	"cornelius.dev/ebiten/entities"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 type Game struct {
@@ -166,7 +165,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		if n == 0 {
 			g.camera.Constrain(
 				float64(layer.Width)*g.CalcTileSize(),
-				float64(layer.Height)*g.CalcTileSize(),
+				float64(layer.Height)*g.CalcTileSize()-(g.CalcTileSize()*2),
 				1280,
 				960,
 			)
@@ -182,74 +181,87 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			x *= g.CalcTileSize()
 			y *= g.CalcTileSize()
 
-			image := g.tilesets[n].Image(id, g.tileSize, g.tileSize)
-			offset := (float64(image.Bounds().Dy()) + g.tileSize) * g.baseScale
+			img := g.tilesets[n].Image(id, g.tileSize, g.tileSize)
+			offset := (float64(img.Bounds().Dy()) + g.tileSize) * g.baseScale
 
 			opts.GeoM.Scale(g.baseScale, g.baseScale)
 			opts.GeoM.Translate(x, y-offset)
 			opts.GeoM.Translate(g.camera.X, g.camera.Y)
 
-			screen.DrawImage(image, &opts)
+			screen.DrawImage(img, &opts)
 
 			opts.GeoM.Reset()
+
+			if layer.Name == "floor" {
+				opts.GeoM.Scale(g.baseScale, g.baseScale)
+				opts.GeoM.Translate(g.player.X, g.player.Y)
+				opts.GeoM.Translate(g.camera.X, g.camera.Y)
+
+				screen.DrawImage(
+					g.player.Image.SubImage(
+						image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
+					).(*ebiten.Image),
+					&opts,
+				)
+
+				opts.GeoM.Reset()
+
+				for _, sprite := range g.enemies {
+					opts.GeoM.Scale(g.baseScale, g.baseScale)
+					opts.GeoM.Translate(sprite.X, sprite.Y)
+					opts.GeoM.Translate(g.camera.X, g.camera.Y)
+					screen.DrawImage(
+						sprite.Image.SubImage(
+							image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
+						).(*ebiten.Image),
+						&opts,
+					)
+
+					opts.GeoM.Reset()
+				}
+
+				for _, sprite := range g.potions {
+					opts.GeoM.Scale(g.baseScale, g.baseScale)
+					opts.GeoM.Translate(sprite.X, sprite.Y)
+					opts.GeoM.Translate(g.camera.X, g.camera.Y)
+					screen.DrawImage(
+						sprite.Image.SubImage(
+							image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
+						).(*ebiten.Image),
+						&opts,
+					)
+
+					opts.GeoM.Reset()
+				}
+			} else if layer.Name == "objects" {
+				bottom := y - offset + (float64(img.Bounds().Dy()) * g.baseScale)
+				top := bottom - g.CalcTileSize()*2
+				width := float64(img.Bounds().Dx()) * g.baseScale
+
+				g.colliders = append(g.colliders, image.Rect(
+					int(x),
+					int(top),
+					int(x+width),
+					int(bottom),
+				))
+			}
 		}
 	}
 
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("%d", int(g.player.Health)))
 
-	opts.GeoM.Scale(g.baseScale, g.baseScale)
-	opts.GeoM.Translate(g.player.X, g.player.Y)
-	opts.GeoM.Translate(g.camera.X, g.camera.Y)
-
-	screen.DrawImage(
-		g.player.Image.SubImage(
-			image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
-		).(*ebiten.Image),
-		&opts,
-	)
-
-	opts.GeoM.Reset()
-
-	for _, sprite := range g.enemies {
-		opts.GeoM.Scale(g.baseScale, g.baseScale)
-		opts.GeoM.Translate(sprite.X, sprite.Y)
-		opts.GeoM.Translate(g.camera.X, g.camera.Y)
-		screen.DrawImage(
-			sprite.Image.SubImage(
-				image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
-			).(*ebiten.Image),
-			&opts,
-		)
-
-		opts.GeoM.Reset()
-	}
-
-	for _, sprite := range g.potions {
-		opts.GeoM.Scale(g.baseScale, g.baseScale)
-		opts.GeoM.Translate(sprite.X, sprite.Y)
-		opts.GeoM.Translate(g.camera.X, g.camera.Y)
-		screen.DrawImage(
-			sprite.Image.SubImage(
-				image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
-			).(*ebiten.Image),
-			&opts,
-		)
-
-		opts.GeoM.Reset()
-	}
-
-	for _, collider := range g.colliders {
-		vector.StrokeRect(
-			screen,
-			float32(collider.Min.X)+float32(g.camera.X),
-			float32(collider.Min.Y)+float32(g.camera.Y),
-			float32(collider.Dx()),
-			float32(collider.Dy()),
-			1.0,
-			color.RGBA{255, 0, 0, 255},
-			true,
-		)
-	}
+	// for _, collider := range g.colliders {
+	// 	vector.StrokeRect(
+	// 		screen,
+	// 		float32(collider.Min.X)+float32(g.camera.X),
+	// 		float32(collider.Min.Y)+float32(g.camera.Y),
+	// 		float32(collider.Dx()),
+	// 		float32(collider.Dy()),
+	// 		1.0,
+	// 		color.RGBA{255, 0, 0, 255},
+	// 		true,
+	// 	)
+	// }
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
