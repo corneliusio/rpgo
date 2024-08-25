@@ -1,6 +1,6 @@
 package entities
 
-type Potion struct {
+type Item struct {
 	*Sprite
 	Damage float64
 }

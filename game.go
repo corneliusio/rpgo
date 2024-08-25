@@ -12,56 +12,100 @@ import (
 )
 
 type Game struct {
-	baseScale   float64
-	baseVector  float64
-	tileSize    float64
-	camera      *Camera
-	player      *entities.Player
-	enemies     []*entities.Enemy
-	potions     []*entities.Potion
-	tilemapImg  *ebiten.Image
-	tilemapJSON *TilemapJSON
-	tilesets    []Tileset
-	colliders   []image.Rectangle
+	baseScale        float64
+	baseVector       float64
+	realTileSize     float64
+	renderedTileSize float64
+	camera           *Camera
+	player           *entities.Player
+	enemies          []*entities.Enemy
+	items            []*entities.Item
+	tilemapImg       *ebiten.Image
+	tilemapJSON      *TilemapJSON
+	tilesets         []Tileset
+	staticColliders  []entities.Collider
+	dynamicColliders []entities.Collider
+	drawOpts         ebiten.DrawImageOptions
 }
 
-func (g *Game) CalcTileSize() float64 {
-	return g.tileSize * g.baseScale
-}
+func (g *Game) DrawSprite(screen *ebiten.Image, sprite *entities.Sprite) {
+	g.drawOpts.GeoM.Scale(g.baseScale, g.baseScale)
+	g.drawOpts.GeoM.Translate(sprite.X, sprite.Y)
+	g.drawOpts.GeoM.Translate(g.camera.X, g.camera.Y)
 
-func (g *Game) CheckCollisionHorizontal(sprite *entities.Sprite, colliders []image.Rectangle) {
-	rect := image.Rect(
-		int(sprite.X),
-		int(sprite.Y),
-		int(sprite.X+g.CalcTileSize()),
-		int(sprite.Y+g.CalcTileSize()),
+	screen.DrawImage(
+		sprite.Image.SubImage(
+			image.Rect(0, 0, int(g.realTileSize), int(g.realTileSize)),
+		).(*ebiten.Image),
+		&g.drawOpts,
 	)
 
-	for _, collider := range g.colliders {
-		if collider.Overlaps(rect) {
+	g.drawOpts.GeoM.Reset()
+}
+
+func (g *Game) CheckCollisionHorizontal(sprite *entities.Sprite) {
+	sprite.X += sprite.Dx
+
+	rect := sprite.Rect(g.renderedTileSize)
+
+	for _, collider := range g.staticColliders {
+		if collider.Self == sprite {
+			continue
+		}
+
+		if collider.Rect.Overlaps(rect) {
 			if sprite.Dx > 0 {
-				sprite.X = float64(collider.Min.X) - g.CalcTileSize()
+				sprite.X = float64(collider.Rect.Min.X) - g.renderedTileSize
 			} else if sprite.Dx < 0 {
-				sprite.X = float64(collider.Max.X)
+				sprite.X = float64(collider.Rect.Max.X)
+			}
+		}
+	}
+
+	for _, collider := range g.dynamicColliders {
+		if collider.Self == sprite {
+			continue
+		}
+
+		if collider.Rect.Overlaps(rect) {
+			if sprite.Dx > 0 {
+				sprite.X = float64(collider.Rect.Min.X) - g.renderedTileSize
+			} else if sprite.Dx < 0 {
+				sprite.X = float64(collider.Rect.Max.X)
 			}
 		}
 	}
 }
 
-func (g *Game) CheckCollisionVertical(sprite *entities.Sprite, colliders []image.Rectangle) {
-	rect := image.Rect(
-		int(sprite.X),
-		int(sprite.Y),
-		int(sprite.X+g.CalcTileSize()),
-		int(sprite.Y+g.CalcTileSize()),
-	)
+func (g *Game) CheckCollisionVertical(sprite *entities.Sprite) {
+	sprite.Y += sprite.Dy
 
-	for _, collider := range g.colliders {
-		if collider.Overlaps(rect) {
+	rect := sprite.Rect(g.renderedTileSize)
+
+	for _, collider := range g.staticColliders {
+		if collider.Self == sprite {
+			continue
+		}
+
+		if collider.Rect.Overlaps(rect) {
 			if sprite.Dy > 0 {
-				sprite.Y = float64(collider.Min.Y) - g.CalcTileSize()
+				sprite.Y = float64(collider.Rect.Min.Y) - g.renderedTileSize
 			} else if sprite.Dy < 0 {
-				sprite.Y = float64(collider.Max.Y)
+				sprite.Y = float64(collider.Rect.Max.Y)
+			}
+		}
+	}
+
+	for _, collider := range g.dynamicColliders {
+		if collider.Self == sprite {
+			continue
+		}
+
+		if collider.Rect.Overlaps(rect) {
+			if sprite.Dy > 0 {
+				sprite.Y = float64(collider.Rect.Min.Y) - g.renderedTileSize
+			} else if sprite.Dy < 0 {
+				sprite.Y = float64(collider.Rect.Max.Y)
 			}
 		}
 	}
@@ -91,42 +135,45 @@ func (g *Game) UpdatePlayerVectors() {
 	if ebiten.IsKeyPressed(ebiten.KeyUp) {
 		g.player.Dy = -vector
 	}
+
+	g.player.NormalizeVector()
+}
+
+func (g *Game) UpdateAggroEnemyVectors(enemy *entities.Enemy) {
+	vector := g.baseVector * enemy.Speed
+	enemy.Dx = 0
+	enemy.Dy = 0
+
+	if enemy.X+g.renderedTileSize <= g.player.X {
+		enemy.Dx = +vector
+	} else if enemy.X >= g.player.X+g.renderedTileSize {
+		enemy.Dx = -vector
+	}
+
+	if enemy.Y+g.renderedTileSize <= g.player.Y {
+		enemy.Dy = +vector
+	} else if enemy.Y >= g.player.Y+g.renderedTileSize {
+		enemy.Dy = -vector
+	}
+
+	enemy.NormalizeVector()
 }
 
 func (g *Game) Update() error {
 	g.UpdatePlayerVectors()
+	g.CheckCollisionHorizontal(g.player.Sprite)
+	g.CheckCollisionVertical(g.player.Sprite)
 
-	g.player.X += g.player.Dx
-	g.CheckCollisionHorizontal(g.player.Sprite, g.colliders)
-
-	g.player.Y += g.player.Dy
-	g.CheckCollisionVertical(g.player.Sprite, g.colliders)
+	playerRect := g.player.Rect(g.renderedTileSize)
 
 	for _, enemy := range g.enemies {
 		if enemy.Aggro == true {
-			// enemy.Dx = 0
-			// enemy.Dy = 0
-
-			if enemy.X+g.CalcTileSize() <= g.player.X {
-				enemy.Dx = +g.baseVector * enemy.Speed
-			} else if enemy.X >= g.player.X+g.CalcTileSize() {
-				enemy.Dx = -g.baseVector * enemy.Speed
-			}
-
-			enemy.X += enemy.Dx
-			g.CheckCollisionHorizontal(enemy.Sprite, g.colliders)
-
-			if enemy.Y+g.CalcTileSize() <= g.player.Y {
-				enemy.Dy = +g.baseVector * enemy.Speed
-			} else if enemy.Y >= g.player.Y+g.CalcTileSize() {
-				enemy.Dy = -g.baseVector * enemy.Speed
-			}
-
-			enemy.Y += enemy.Dy
-			g.CheckCollisionVertical(enemy.Sprite, g.colliders)
+			g.UpdateAggroEnemyVectors(enemy)
+			g.CheckCollisionHorizontal(enemy.Sprite)
+			g.CheckCollisionVertical(enemy.Sprite)
 		}
 
-		if g.player.X+g.CalcTileSize() >= enemy.X && g.player.X <= enemy.X+g.tileSize && g.player.Y+g.CalcTileSize() >= enemy.Y && g.player.Y <= enemy.Y+g.tileSize {
+		if playerRect.Overlaps(enemy.Rect(g.renderedTileSize)) {
 			enemy.EffectHealth(g.player.Damage)
 			g.player.EffectHealth(enemy.Damage)
 
@@ -140,10 +187,13 @@ func (g *Game) Update() error {
 		}
 	}
 
-	for _, potion := range g.potions {
-		if g.player.X+g.CalcTileSize() >= potion.X && g.player.X <= potion.X+g.tileSize && g.player.Y+g.CalcTileSize() >= potion.Y && g.player.Y <= potion.Y+g.tileSize {
-			g.player.EffectHealth(potion.Damage)
-			g.RemovePotion(potion)
+	for _, item := range g.items {
+		if playerRect.Overlaps(item.Rect(g.renderedTileSize)) {
+			if item.Damage != 0 {
+				g.player.EffectHealth(item.Damage)
+			}
+
+			g.RemoveItem(item)
 		}
 	}
 
@@ -152,11 +202,10 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{120, 180, 255, 255})
-	opts := ebiten.DrawImageOptions{}
 
 	g.camera.FollowTarget(
-		g.player.X-float64(g.tileSize/2),
-		g.player.Y-float64(g.tileSize/2),
+		g.player.X-float64(g.realTileSize/2),
+		g.player.Y-float64(g.realTileSize/2),
 		1280,
 		960,
 	)
@@ -164,8 +213,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for n, layer := range g.tilemapJSON.Layers {
 		if n == 0 {
 			g.camera.Constrain(
-				float64(layer.Width)*g.CalcTileSize(),
-				float64(layer.Height)*g.CalcTileSize()-(g.CalcTileSize()*2),
+				float64(layer.Width)*g.renderedTileSize,
+				float64(layer.Height)*g.renderedTileSize-(g.renderedTileSize*2),
 				1280,
 				960,
 			)
@@ -178,85 +227,83 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 			x := float64(i % layer.Width)
 			y := float64(i / layer.Height)
-			x *= g.CalcTileSize()
-			y *= g.CalcTileSize()
+			x *= g.renderedTileSize
+			y *= g.renderedTileSize
 
-			img := g.tilesets[n].Image(id, g.tileSize, g.tileSize)
-			offset := (float64(img.Bounds().Dy()) + g.tileSize) * g.baseScale
+			img := g.tilesets[n].Image(id, g.realTileSize, g.realTileSize)
+			offset := (float64(img.Bounds().Dy()) + g.realTileSize) * g.baseScale
 
-			opts.GeoM.Scale(g.baseScale, g.baseScale)
-			opts.GeoM.Translate(x, y-offset)
-			opts.GeoM.Translate(g.camera.X, g.camera.Y)
+			g.drawOpts.GeoM.Scale(g.baseScale, g.baseScale)
+			g.drawOpts.GeoM.Translate(x, y-offset)
+			g.drawOpts.GeoM.Translate(g.camera.X, g.camera.Y)
 
-			screen.DrawImage(img, &opts)
+			screen.DrawImage(img, &g.drawOpts)
 
-			opts.GeoM.Reset()
+			g.drawOpts.GeoM.Reset()
 
 			if layer.Name == "floor" {
-				opts.GeoM.Scale(g.baseScale, g.baseScale)
-				opts.GeoM.Translate(g.player.X, g.player.Y)
-				opts.GeoM.Translate(g.camera.X, g.camera.Y)
+				g.dynamicColliders = []entities.Collider{}
 
-				screen.DrawImage(
-					g.player.Image.SubImage(
-						image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
-					).(*ebiten.Image),
-					&opts,
-				)
+				g.DrawSprite(screen, g.player.Sprite)
+				g.dynamicColliders = append(g.dynamicColliders, entities.Collider{
+					Self: g.player.Sprite,
+					Rect: g.player.Rect(g.renderedTileSize),
+				})
 
-				opts.GeoM.Reset()
+				for _, sprite := range g.items {
+					g.DrawSprite(screen, sprite.Sprite)
+				}
 
 				for _, sprite := range g.enemies {
-					opts.GeoM.Scale(g.baseScale, g.baseScale)
-					opts.GeoM.Translate(sprite.X, sprite.Y)
-					opts.GeoM.Translate(g.camera.X, g.camera.Y)
-					screen.DrawImage(
-						sprite.Image.SubImage(
-							image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
-						).(*ebiten.Image),
-						&opts,
-					)
-
-					opts.GeoM.Reset()
+					g.DrawSprite(screen, sprite.Sprite)
+					g.dynamicColliders = append(g.dynamicColliders, entities.Collider{
+						Self: sprite.Sprite,
+						Rect: sprite.Rect(g.renderedTileSize),
+					})
 				}
+			}
 
-				for _, sprite := range g.potions {
-					opts.GeoM.Scale(g.baseScale, g.baseScale)
-					opts.GeoM.Translate(sprite.X, sprite.Y)
-					opts.GeoM.Translate(g.camera.X, g.camera.Y)
-					screen.DrawImage(
-						sprite.Image.SubImage(
-							image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
-						).(*ebiten.Image),
-						&opts,
-					)
-
-					opts.GeoM.Reset()
-				}
-			} else if layer.Name == "objects" {
+			if layer.Name == "objects" {
 				bottom := y - offset + (float64(img.Bounds().Dy()) * g.baseScale)
-				top := bottom - g.CalcTileSize()*2
+				top := bottom - g.renderedTileSize*2 - g.renderedTileSize/4
 				width := float64(img.Bounds().Dx()) * g.baseScale
 
-				g.colliders = append(g.colliders, image.Rect(
-					int(x),
-					int(top),
-					int(x+width),
-					int(bottom),
-				))
+				g.staticColliders = append(g.staticColliders, entities.Collider{
+					Self: nil,
+					Rect: image.Rect(
+						int(x),
+						int(top),
+						int(x+width),
+						int(bottom),
+					),
+				})
 			}
 		}
 	}
 
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("%d", int(g.player.Health)))
+	// ebitenutil.DebugPrint(screen, fmt.Sprintf("%d %d", int(ebiten.ActualTPS()), int(ebiten.ActualFPS())))
 
-	// for _, collider := range g.colliders {
+	// for _, collider := range g.staticColliders {
 	// 	vector.StrokeRect(
 	// 		screen,
-	// 		float32(collider.Min.X)+float32(g.camera.X),
-	// 		float32(collider.Min.Y)+float32(g.camera.Y),
-	// 		float32(collider.Dx()),
-	// 		float32(collider.Dy()),
+	// 		float32(collider.Rect.Min.X)+float32(g.camera.X),
+	// 		float32(collider.Rect.Min.Y)+float32(g.camera.Y),
+	// 		float32(collider.Rect.Dx()),
+	// 		float32(collider.Rect.Dy()),
+	// 		1.0,
+	// 		color.RGBA{255, 0, 0, 255},
+	// 		true,
+	// 	)
+	// }
+
+	// for _, collider := range g.dynamicColliders {
+	// 	vector.StrokeRect(
+	// 		screen,
+	// 		float32(collider.Rect.Min.X)+float32(g.camera.X),
+	// 		float32(collider.Rect.Min.Y)+float32(g.camera.Y),
+	// 		float32(collider.Rect.Dx()),
+	// 		float32(collider.Rect.Dy()),
 	// 		1.0,
 	// 		color.RGBA{255, 0, 0, 255},
 	// 		true,
@@ -281,14 +328,14 @@ func (g *Game) RemoveEnemy(enemy *entities.Enemy) {
 	}
 }
 
-func (g *Game) PlacePotion(potion *entities.Potion) {
-	g.potions = append(g.potions, potion)
+func (g *Game) PlaceItem(item *entities.Item) {
+	g.items = append(g.items, item)
 }
 
-func (g *Game) RemovePotion(potion *entities.Potion) {
-	for i, p := range g.potions {
-		if p == potion {
-			g.potions = append(g.potions[:i], g.potions[i+1:]...)
+func (g *Game) RemoveItem(item *entities.Item) {
+	for i, p := range g.items {
+		if p == item {
+			g.items = append(g.items[:i], g.items[i+1:]...)
 			break
 		}
 	}

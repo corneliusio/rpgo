@@ -1,7 +1,6 @@
 package main
 
 import (
-	"image"
 	"log"
 
 	"cornelius.dev/ebiten/entities"
@@ -10,6 +9,9 @@ import (
 )
 
 func main() {
+	TPS := 60
+
+	ebiten.SetTPS(TPS)
 	ebiten.SetWindowTitle("RPGo")
 	ebiten.SetWindowSize(1280, 960)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
@@ -44,42 +46,58 @@ func main() {
 		log.Fatal(err)
 	}
 
+	realTileSize := float64(16)
 	baseScale := ebiten.Monitor().DeviceScaleFactor() * 1.5
 	game := Game{
-		baseScale:   baseScale,
-		baseVector:  3,
-		tileSize:    16,
-		tilemapJSON: tilemap,
-		tilemapImg:  tilemapImg,
-		tilesets:    tilesets,
-		colliders:   []image.Rectangle{},
-		camera:      NewCamera(0.0, 0.0),
+		baseVector:       float64(TPS / 20),
+		baseScale:        baseScale,
+		realTileSize:     realTileSize,
+		renderedTileSize: realTileSize * baseScale,
+		tilemapJSON:      tilemap,
+		tilemapImg:       tilemapImg,
+		tilesets:         tilesets,
+		staticColliders:  []entities.Collider{},
+		dynamicColliders: []entities.Collider{},
+		camera:           NewCamera(0.0, 0.0),
+		drawOpts:         ebiten.DrawImageOptions{},
 		player: &entities.Player{
-			Sprite:    &entities.Sprite{Image: playerImg, X: 275.0, Y: 275.0, Speed: 1},
-			Character: &entities.Character{MaxHealth: 100, Health: 80},
-			Damage:    10,
+			Character: &entities.Character{
+				Sprite:    &entities.Sprite{Image: playerImg, X: 275.0, Y: 275.0, Speed: 1},
+				MaxHealth: 100,
+				Health:    80,
+				Damage:    10,
+			},
 		},
 		enemies: []*entities.Enemy{
 			{
-				Sprite:    &entities.Sprite{Image: skeletonImg, X: 200.0, Y: 150.0, Speed: 0.5},
-				Character: &entities.Character{MaxHealth: 50, Health: 50},
-				Damage:    5,
-				Aggro:     false,
+				Character: &entities.Character{
+					Sprite:    &entities.Sprite{Image: skeletonImg, X: 200.0, Y: 150.0, Speed: 0.5},
+					MaxHealth: 50,
+					Health:    50,
+					Damage:    5,
+				},
+				Aggro: false,
 			},
 			{
-				Sprite:    &entities.Sprite{Image: skeletonImg, X: 400.0, Y: 300.0, Speed: 0.5},
-				Character: &entities.Character{MaxHealth: 50, Health: 50},
-				Damage:    5,
-				Aggro:     true,
+				Character: &entities.Character{
+					Sprite:    &entities.Sprite{Image: skeletonImg, X: 400.0, Y: 300.0, Speed: 0.5},
+					MaxHealth: 50,
+					Health:    50,
+					Damage:    5,
+				},
+				Aggro: true,
 			},
 			{
-				Sprite:    &entities.Sprite{Image: skeletonImg, X: 600.0, Y: 450.0, Speed: 0.5},
-				Character: &entities.Character{MaxHealth: 50, Health: 50},
-				Damage:    5,
-				Aggro:     true,
+				Character: &entities.Character{
+					Sprite:    &entities.Sprite{Image: skeletonImg, X: 600.0, Y: 450.0, Speed: 0.5},
+					MaxHealth: 50,
+					Health:    50,
+					Damage:    5,
+				},
+				Aggro: true,
 			},
 		},
-		potions: []*entities.Potion{
+		items: []*entities.Item{
 			{
 				Sprite: &entities.Sprite{Image: potionImg, X: 400.0, Y: 100.0},
 				Damage: -20,
