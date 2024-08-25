@@ -115,9 +115,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			y *= g.tileSize * g.baseScale
 
 			image := g.tilesets[n].Image(id, g.tileSize, g.tileSize)
+			offset := (float64(image.Bounds().Dy()) + g.tileSize) * g.baseScale
 
 			opts.GeoM.Scale(g.baseScale, g.baseScale)
-			opts.GeoM.Translate(x, y)
+			opts.GeoM.Translate(x, y-offset)
 			opts.GeoM.Translate(g.camera.X, g.camera.Y)
 
 			screen.DrawImage(image, &opts)
