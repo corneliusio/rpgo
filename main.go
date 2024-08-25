@@ -9,8 +9,8 @@ import (
 )
 
 func main() {
+	ebiten.SetWindowTitle("RPGo")
 	ebiten.SetWindowSize(1280, 960)
-	ebiten.SetWindowTitle("Ebiten")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
 	playerImg, _, err := ebitenutil.NewImageFromFile("assets/images/character.png")
@@ -33,40 +33,40 @@ func main() {
 		log.Fatal(err)
 	}
 
-	tilemapJSON, err := NewTileMapJSON("assets/maps/tilesets/tilemap.json")
+	tilemap, err := NewTileMapJSON("assets/maps/tilemap.json")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	game := Game{
-		baseScale:   ebiten.Monitor().DeviceScaleFactor() * 1.5,
-		baseVector:  4,
-		tileSize:    16,
-		tilemapJSON: tilemapJSON,
-		tilemapImg:  tilemapImg,
-		camera:      NewCamera(50.0, 50.0),
+		baseScale:  ebiten.Monitor().DeviceScaleFactor() * 1.5,
+		baseVector: 3,
+		tileSize:   16,
+		tilemap:    tilemap,
+		tilemapImg: tilemapImg,
+		camera:     NewCamera(50.0, 50.0),
 		player: &entities.Player{
 			Sprite:    &entities.Sprite{Image: playerImg, X: 275.0, Y: 275.0},
-			MaxHealth: 100,
-			Health:    80,
+			Character: &entities.Character{MaxHealth: 100, Health: 80},
+			Damage:    10,
 		},
 		enemies: []*entities.Enemy{
 			{
 				Sprite:    &entities.Sprite{Image: skeletonImg, X: 200.0, Y: 150.0},
-				MaxHealth: 50,
-				Health:    50,
+				Character: &entities.Character{MaxHealth: 50, Health: 50},
+				Damage:    5,
 				Aggro:     false,
 			},
 			{
 				Sprite:    &entities.Sprite{Image: skeletonImg, X: 400.0, Y: 300.0},
-				MaxHealth: 50,
-				Health:    50,
+				Character: &entities.Character{MaxHealth: 50, Health: 50},
+				Damage:    5,
 				Aggro:     true,
 			},
 			{
 				Sprite:    &entities.Sprite{Image: skeletonImg, X: 600.0, Y: 450.0},
-				MaxHealth: 50,
-				Health:    50,
+				Character: &entities.Character{MaxHealth: 50, Health: 50},
+				Damage:    5,
 				Aggro:     true,
 			},
 		},

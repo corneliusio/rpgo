@@ -5,7 +5,6 @@ import (
 	"image"
 	"image/color"
 	"log"
-	"math"
 
 	"cornelius.dev/ebiten/entities"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -13,49 +12,55 @@ import (
 )
 
 type Game struct {
-	baseScale   float64
-	baseVector  float64
-	tileSize    int
-	camera      *Camera
-	player      *entities.Player
-	enemies     []*entities.Enemy
-	potions     []*entities.Potion
-	tilemapImg  *ebiten.Image
-	tilemapJSON *TilemapJSON
+	baseScale  float64
+	baseVector float64
+	tileSize   float64
+	camera     *Camera
+	player     *entities.Player
+	enemies    []*entities.Enemy
+	potions    []*entities.Potion
+	tilemapImg *ebiten.Image
+	tilemap    *TilemapJSON
 }
 
 func (g *Game) Update() error {
+	playerVector := g.baseVector
+
+	if ebiten.IsKeyPressed(ebiten.KeyShift) {
+		playerVector = g.baseVector * 1.5
+	}
+
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		g.player.X += g.baseVector
+		g.player.X += playerVector
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		g.player.X -= g.baseVector
+		g.player.X -= playerVector
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyDown) {
-		g.player.Y += g.baseVector
+		g.player.Y += playerVector
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyUp) {
-		g.player.Y -= g.baseVector
+		g.player.Y -= playerVector
 	}
 
 	for _, enemy := range g.enemies {
 		if enemy.Aggro == true {
-			if enemy.X+float64(g.tileSize)*g.baseScale <= g.player.X {
+			if enemy.X+g.tileSize*g.baseScale <= g.player.X {
 				enemy.X += g.baseVector / 2
-			} else if enemy.X >= g.player.X+float64(g.tileSize)*g.baseScale {
+			} else if enemy.X >= g.player.X+g.tileSize*g.baseScale {
 				enemy.X -= g.baseVector / 2
 			}
 
-			if enemy.Y+float64(g.tileSize)*g.baseScale <= g.player.Y {
+			if enemy.Y+g.tileSize*g.baseScale <= g.player.Y {
 				enemy.Y += g.baseVector / 2
-			} else if enemy.Y >= g.player.Y+float64(g.tileSize)*g.baseScale {
+			} else if enemy.Y >= g.player.Y+g.tileSize*g.baseScale {
 				enemy.Y -= g.baseVector / 2
 			}
 		}
 
-		if g.player.X+float64(g.tileSize)*g.baseScale >= enemy.X && g.player.X <= enemy.X+float64(g.tileSize) && g.player.Y+float64(g.tileSize)*g.baseScale >= enemy.Y && g.player.Y <= enemy.Y+float64(g.tileSize) {
-			enemy.Health = math.Max(0, enemy.Health-10)
-			g.player.Health = math.Max(0, g.player.Health-5)
+		if g.player.X+g.tileSize*g.baseScale >= enemy.X && g.player.X <= enemy.X+g.tileSize && g.player.Y+g.tileSize*g.baseScale >= enemy.Y && g.player.Y <= enemy.Y+g.tileSize {
+			enemy.EffectHealth(g.player.Damage)
+			g.player.EffectHealth(enemy.Damage)
 
 			if enemy.Health == 0 {
 				g.RemoveEnemy(enemy)
@@ -68,8 +73,8 @@ func (g *Game) Update() error {
 	}
 
 	for _, potion := range g.potions {
-		if g.player.X+float64(g.tileSize)*g.baseScale >= potion.X && g.player.X <= potion.X+float64(g.tileSize) && g.player.Y+float64(g.tileSize)*g.baseScale >= potion.Y && g.player.Y <= potion.Y+float64(g.tileSize) {
-			g.player.Health = math.Max(0, math.Min(g.player.MaxHealth, g.player.Health-potion.Damage))
+		if g.player.X+g.tileSize*g.baseScale >= potion.X && g.player.X <= potion.X+g.tileSize && g.player.Y+g.tileSize*g.baseScale >= potion.Y && g.player.Y <= potion.Y+g.tileSize {
+			g.player.EffectHealth(potion.Damage)
 			g.RemovePotion(potion)
 		}
 	}
@@ -83,24 +88,24 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	g.camera.FollowTarget(g.player.X-float64(g.tileSize/2), g.player.Y-float64(g.tileSize/2), 1280, 960)
 
-	for n, layer := range g.tilemapJSON.Layers {
+	for n, layer := range g.tilemap.Layers {
 		if n == 0 {
 			g.camera.Constrain(
-				float64(layer.Width),
-				float64(layer.Height),
+				float64(layer.Width)*g.tileSize*g.baseScale,
+				float64(layer.Height)*g.tileSize*g.baseScale,
 				1280,
 				960,
 			)
 		}
 
 		for i, id := range layer.Data {
-			x := i % layer.Width
-			y := i / layer.Height
-			x *= g.tileSize * int(g.baseScale)
-			y *= g.tileSize * int(g.baseScale)
+			x := float64(i % layer.Width)
+			y := float64(i / layer.Height)
+			x *= g.tileSize * g.baseScale
+			y *= g.tileSize * g.baseScale
 
-			srcX := (id - 1) % 22
-			srcY := (id - 1) / 22
+			srcX := float64((id - 1) % 22)
+			srcY := float64((id - 1) / 22)
 			srcX *= g.tileSize
 			srcY *= g.tileSize
 
@@ -109,7 +114,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			opts.GeoM.Translate(g.camera.X, g.camera.Y)
 
 			screen.DrawImage(
-				g.tilemapImg.SubImage(image.Rect(srcX, srcY, srcX+g.tileSize, srcY+g.tileSize)).(*ebiten.Image),
+				g.tilemapImg.SubImage(
+					image.Rect(int(srcX), int(srcY), int(srcX+g.tileSize), int(srcY+g.tileSize)),
+				).(*ebiten.Image),
 				&opts,
 			)
 
@@ -125,7 +132,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	screen.DrawImage(
 		g.player.Image.SubImage(
-			image.Rect(0, 0, g.tileSize, g.tileSize),
+			image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
 		).(*ebiten.Image),
 		&opts,
 	)
@@ -138,7 +145,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		opts.GeoM.Translate(g.camera.X, g.camera.Y)
 		screen.DrawImage(
 			sprite.Image.SubImage(
-				image.Rect(0, 0, g.tileSize, g.tileSize),
+				image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
 			).(*ebiten.Image),
 			&opts,
 		)
@@ -152,7 +159,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		opts.GeoM.Translate(g.camera.X, g.camera.Y)
 		screen.DrawImage(
 			sprite.Image.SubImage(
-				image.Rect(0, 0, g.tileSize, g.tileSize),
+				image.Rect(0, 0, int(g.tileSize), int(g.tileSize)),
 			).(*ebiten.Image),
 			&opts,
 		)
