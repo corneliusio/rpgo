@@ -9,6 +9,7 @@ import (
 	"cornelius.dev/ebiten/entities"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 type Game struct {
@@ -22,44 +23,111 @@ type Game struct {
 	tilemapImg  *ebiten.Image
 	tilemapJSON *TilemapJSON
 	tilesets    []Tileset
+	colliders   []image.Rectangle
 }
 
-func (g *Game) Update() error {
-	playerVector := g.baseVector
+func (g *Game) CalcTileSize() float64 {
+	return g.tileSize * g.baseScale
+}
+
+func (g *Game) CheckCollisionHorizontal(sprite *entities.Sprite, colliders []image.Rectangle) {
+	rect := image.Rect(
+		int(sprite.X),
+		int(sprite.Y),
+		int(sprite.X+g.CalcTileSize()),
+		int(sprite.Y+g.CalcTileSize()),
+	)
+
+	for _, collider := range g.colliders {
+		if collider.Overlaps(rect) {
+			if sprite.Dx > 0 {
+				sprite.X = float64(collider.Min.X) - g.CalcTileSize()
+			} else if sprite.Dx < 0 {
+				sprite.X = float64(collider.Max.X)
+			}
+		}
+	}
+}
+
+func (g *Game) CheckCollisionVertical(sprite *entities.Sprite, colliders []image.Rectangle) {
+	rect := image.Rect(
+		int(sprite.X),
+		int(sprite.Y),
+		int(sprite.X+g.CalcTileSize()),
+		int(sprite.Y+g.CalcTileSize()),
+	)
+
+	for _, collider := range g.colliders {
+		if collider.Overlaps(rect) {
+			if sprite.Dy > 0 {
+				sprite.Y = float64(collider.Min.Y) - g.CalcTileSize()
+			} else if sprite.Dy < 0 {
+				sprite.Y = float64(collider.Max.Y)
+			}
+		}
+	}
+}
+
+func (g *Game) UpdatePlayerVectors() {
+	vector := g.baseVector * g.player.Speed
+	g.player.Dx = 0
+	g.player.Dy = 0
 
 	if ebiten.IsKeyPressed(ebiten.KeyShift) {
-		playerVector = g.baseVector * 1.5
+		vector = g.baseVector * 1.5
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		g.player.X += playerVector
+		g.player.Dx = +vector
 	}
+
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		g.player.X -= playerVector
+		g.player.Dx = -vector
 	}
+
 	if ebiten.IsKeyPressed(ebiten.KeyDown) {
-		g.player.Y += playerVector
+		g.player.Dy = +vector
 	}
+
 	if ebiten.IsKeyPressed(ebiten.KeyUp) {
-		g.player.Y -= playerVector
+		g.player.Dy = -vector
 	}
+}
+
+func (g *Game) Update() error {
+	g.UpdatePlayerVectors()
+
+	g.player.X += g.player.Dx
+	g.CheckCollisionHorizontal(g.player.Sprite, g.colliders)
+
+	g.player.Y += g.player.Dy
+	g.CheckCollisionVertical(g.player.Sprite, g.colliders)
 
 	for _, enemy := range g.enemies {
 		if enemy.Aggro == true {
-			if enemy.X+g.tileSize*g.baseScale <= g.player.X {
-				enemy.X += g.baseVector / 2
-			} else if enemy.X >= g.player.X+g.tileSize*g.baseScale {
-				enemy.X -= g.baseVector / 2
+			// enemy.Dx = 0
+			// enemy.Dy = 0
+
+			if enemy.X+g.CalcTileSize() <= g.player.X {
+				enemy.Dx = +g.baseVector * enemy.Speed
+			} else if enemy.X >= g.player.X+g.CalcTileSize() {
+				enemy.Dx = -g.baseVector * enemy.Speed
 			}
 
-			if enemy.Y+g.tileSize*g.baseScale <= g.player.Y {
-				enemy.Y += g.baseVector / 2
-			} else if enemy.Y >= g.player.Y+g.tileSize*g.baseScale {
-				enemy.Y -= g.baseVector / 2
+			enemy.X += enemy.Dx
+			g.CheckCollisionHorizontal(enemy.Sprite, g.colliders)
+
+			if enemy.Y+g.CalcTileSize() <= g.player.Y {
+				enemy.Dy = +g.baseVector * enemy.Speed
+			} else if enemy.Y >= g.player.Y+g.CalcTileSize() {
+				enemy.Dy = -g.baseVector * enemy.Speed
 			}
+
+			enemy.Y += enemy.Dy
+			g.CheckCollisionVertical(enemy.Sprite, g.colliders)
 		}
 
-		if g.player.X+g.tileSize*g.baseScale >= enemy.X && g.player.X <= enemy.X+g.tileSize && g.player.Y+g.tileSize*g.baseScale >= enemy.Y && g.player.Y <= enemy.Y+g.tileSize {
+		if g.player.X+g.CalcTileSize() >= enemy.X && g.player.X <= enemy.X+g.tileSize && g.player.Y+g.CalcTileSize() >= enemy.Y && g.player.Y <= enemy.Y+g.tileSize {
 			enemy.EffectHealth(g.player.Damage)
 			g.player.EffectHealth(enemy.Damage)
 
@@ -74,7 +142,7 @@ func (g *Game) Update() error {
 	}
 
 	for _, potion := range g.potions {
-		if g.player.X+g.tileSize*g.baseScale >= potion.X && g.player.X <= potion.X+g.tileSize && g.player.Y+g.tileSize*g.baseScale >= potion.Y && g.player.Y <= potion.Y+g.tileSize {
+		if g.player.X+g.CalcTileSize() >= potion.X && g.player.X <= potion.X+g.tileSize && g.player.Y+g.CalcTileSize() >= potion.Y && g.player.Y <= potion.Y+g.tileSize {
 			g.player.EffectHealth(potion.Damage)
 			g.RemovePotion(potion)
 		}
@@ -97,8 +165,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for n, layer := range g.tilemapJSON.Layers {
 		if n == 0 {
 			g.camera.Constrain(
-				float64(layer.Width)*g.tileSize*g.baseScale,
-				float64(layer.Height)*g.tileSize*g.baseScale,
+				float64(layer.Width)*g.CalcTileSize(),
+				float64(layer.Height)*g.CalcTileSize(),
 				1280,
 				960,
 			)
@@ -111,8 +179,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 			x := float64(i % layer.Width)
 			y := float64(i / layer.Height)
-			x *= g.tileSize * g.baseScale
-			y *= g.tileSize * g.baseScale
+			x *= g.CalcTileSize()
+			y *= g.CalcTileSize()
 
 			image := g.tilesets[n].Image(id, g.tileSize, g.tileSize)
 			offset := (float64(image.Bounds().Dy()) + g.tileSize) * g.baseScale
@@ -168,6 +236,19 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		)
 
 		opts.GeoM.Reset()
+	}
+
+	for _, collider := range g.colliders {
+		vector.StrokeRect(
+			screen,
+			float32(collider.Min.X)+float32(g.camera.X),
+			float32(collider.Min.Y)+float32(g.camera.Y),
+			float32(collider.Dx()),
+			float32(collider.Dy()),
+			1.0,
+			color.RGBA{255, 0, 0, 255},
+			true,
+		)
 	}
 }
 

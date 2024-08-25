@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"image"
 	"os"
 	"strings"
@@ -67,7 +66,6 @@ type DynamicTileset struct {
 }
 
 func (d *DynamicTileset) Image(id int, tileWidth, tileHeight float64) *ebiten.Image {
-	fmt.Println(id, d.gid)
 	id -= d.gid
 	return d.imgs[id]
 }
