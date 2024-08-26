@@ -3,7 +3,7 @@ package main
 import (
 	"math"
 
-	"cornelius.dev/ebiten/entities"
+	"github.com/corneliusio/rpgo/entities"
 )
 
 type Camera struct {

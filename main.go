@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"cornelius.dev/ebiten/entities"
+	"github.com/corneliusio/rpgo/entities"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
@@ -63,36 +63,36 @@ func main() {
 		player: &entities.Player{
 			Character: &entities.Character{
 				Sprite:    &entities.Sprite{Image: playerImg, X: 275.0, Y: 275.0, Speed: 1},
-				MaxHealth: 100,
-				Health:    80,
-				Damage:    10,
+				MaxHealth: 12,
+				Health:    8,
+				Damage:    1,
 			},
 		},
 		enemies: []*entities.Enemy{
 			{
 				Character: &entities.Character{
 					Sprite:    &entities.Sprite{Image: skeletonImg, X: 200.0, Y: 150.0, Speed: 0.75},
-					MaxHealth: 50,
-					Health:    50,
-					Damage:    5,
+					MaxHealth: 8,
+					Health:    8,
+					Damage:    2,
 				},
 				Aggro: false,
 			},
 			{
 				Character: &entities.Character{
 					Sprite:    &entities.Sprite{Image: skeletonImg, X: 400.0, Y: 300.0, Speed: 0.75},
-					MaxHealth: 50,
-					Health:    50,
-					Damage:    5,
+					MaxHealth: 8,
+					Health:    8,
+					Damage:    2,
 				},
 				Aggro: true,
 			},
 			{
 				Character: &entities.Character{
 					Sprite:    &entities.Sprite{Image: skeletonImg, X: 600.0, Y: 450.0, Speed: 0.75},
-					MaxHealth: 50,
-					Health:    50,
-					Damage:    5,
+					MaxHealth: 8,
+					Health:    8,
+					Damage:    2,
 				},
 				Aggro: true,
 			},
@@ -100,19 +100,19 @@ func main() {
 		items: []*entities.Item{
 			{
 				Sprite: &entities.Sprite{Image: potionImg, X: 400.0, Y: 100.0},
-				Damage: -20,
+				Damage: -4,
 			},
 			{
 				Sprite: &entities.Sprite{Image: potionImg, X: 100.0, Y: 200.0},
-				Damage: -20,
+				Damage: -4,
 			},
 			{
 				Sprite: &entities.Sprite{Image: potionImg, X: 450.0, Y: 450.0},
-				Damage: -20,
+				Damage: -4,
 			},
 			{
 				Sprite: &entities.Sprite{Image: potionImg, X: 550.0, Y: 250.0},
-				Damage: -20,
+				Damage: -4,
 			},
 		},
 	}

@@ -6,7 +6,7 @@ import (
 	"image/color"
 	"log"
 
-	"cornelius.dev/ebiten/entities"
+	"github.com/corneliusio/rpgo/entities"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/vector"

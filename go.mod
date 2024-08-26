@@ -1,4 +1,4 @@
-module cornelius.dev/ebiten
+module github.com/corneliusio/rpgo
 
 go 1.23.0
 
