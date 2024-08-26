@@ -9,6 +9,7 @@ import (
 	"cornelius.dev/ebiten/entities"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 type Game struct {
@@ -276,37 +277,41 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("%d", int(g.player.Health)))
+
 	// ebitenutil.DebugPrint(screen, fmt.Sprintf("%d %d", int(ebiten.ActualTPS()), int(ebiten.ActualFPS())))
-
-	// for _, collider := range g.staticColliders {
-	// 	vector.StrokeRect(
-	// 		screen,
-	// 		float32(collider.Rect.Min.X)+float32(g.camera.X),
-	// 		float32(collider.Rect.Min.Y)+float32(g.camera.Y),
-	// 		float32(collider.Rect.Dx()),
-	// 		float32(collider.Rect.Dy()),
-	// 		1.0,
-	// 		color.RGBA{255, 0, 0, 255},
-	// 		true,
-	// 	)
-	// }
-
-	// for _, collider := range g.dynamicColliders {
-	// 	vector.StrokeRect(
-	// 		screen,
-	// 		float32(collider.Rect.Min.X)+float32(g.camera.X),
-	// 		float32(collider.Rect.Min.Y)+float32(g.camera.Y),
-	// 		float32(collider.Rect.Dx()),
-	// 		float32(collider.Rect.Dy()),
-	// 		1.0,
-	// 		color.RGBA{255, 0, 0, 255},
-	// 		true,
-	// 	)
-	// }
+	// g.DebugColliders(screen)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return ebiten.WindowSize()
+}
+
+func (g *Game) DebugColliders(screen *ebiten.Image) {
+	for _, collider := range g.staticColliders {
+		vector.StrokeRect(
+			screen,
+			float32(collider.Rect.Min.X)+float32(g.camera.X),
+			float32(collider.Rect.Min.Y)+float32(g.camera.Y),
+			float32(collider.Rect.Dx()),
+			float32(collider.Rect.Dy()),
+			1.0,
+			color.RGBA{255, 0, 0, 255},
+			true,
+		)
+	}
+
+	for _, collider := range g.dynamicColliders {
+		vector.StrokeRect(
+			screen,
+			float32(collider.Rect.Min.X)+float32(g.camera.X),
+			float32(collider.Rect.Min.Y)+float32(g.camera.Y),
+			float32(collider.Rect.Dx()),
+			float32(collider.Rect.Dy()),
+			1.0,
+			color.RGBA{255, 0, 0, 255},
+			true,
+		)
+	}
 }
 
 func (g *Game) PlaceEnemy(enemy *entities.Enemy) {
