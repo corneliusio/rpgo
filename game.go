@@ -117,7 +117,7 @@ func (g *Game) UpdatePlayerVectors() {
 	g.player.Dy = 0
 
 	if ebiten.IsKeyPressed(ebiten.KeyShift) {
-		vector = g.baseVector * 1.5
+		vector = g.baseVector * 1.75
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
@@ -157,6 +157,46 @@ func (g *Game) UpdateAggroEnemyVectors(enemy *entities.Enemy) {
 	}
 
 	enemy.NormalizeVector()
+}
+
+func (g *Game) DrawLayer(screen *ebiten.Image, layer *TilemapLayerJSON, tsi int) {
+	for i, id := range layer.Data {
+		if id == 0 {
+			continue
+		}
+
+		x := float64(i % layer.Width)
+		y := float64(i / layer.Height)
+		x *= g.renderedTileSize
+		y *= g.renderedTileSize
+
+		img := g.tilesets[tsi].Image(id, g.realTileSize, g.realTileSize)
+		offset := (float64(img.Bounds().Dy()) + g.realTileSize) * g.baseScale
+
+		g.drawOpts.GeoM.Scale(g.baseScale, g.baseScale)
+		g.drawOpts.GeoM.Translate(x, y-offset)
+		g.drawOpts.GeoM.Translate(g.camera.X, g.camera.Y)
+
+		screen.DrawImage(img, &g.drawOpts)
+
+		g.drawOpts.GeoM.Reset()
+
+		if layer.Name == "objects" {
+			bottom := y - offset + (float64(img.Bounds().Dy()) * g.baseScale)
+			top := bottom - g.renderedTileSize*2 - g.renderedTileSize/4
+			width := float64(img.Bounds().Dx()) * g.baseScale
+
+			g.staticColliders = append(g.staticColliders, entities.Collider{
+				Self: nil,
+				Rect: image.Rect(
+					int(x),
+					int(top),
+					int(x+width),
+					int(bottom),
+				),
+			})
+		}
+	}
 }
 
 func (g *Game) Update() error {
@@ -203,82 +243,36 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{120, 180, 255, 255})
 
-	g.camera.FollowTarget(
-		g.player.X-float64(g.realTileSize/2),
-		g.player.Y-float64(g.realTileSize/2),
-		1280,
-		960,
-	)
+	screenWidth, screenHeight := ebiten.WindowSize()
+	floor, layers := g.tilemapJSON.Layers[0], g.tilemapJSON.Layers[1:]
 
-	for n, layer := range g.tilemapJSON.Layers {
-		if n == 0 {
-			g.camera.Constrain(
-				float64(layer.Width)*g.renderedTileSize,
-				float64(layer.Height)*g.renderedTileSize-(g.renderedTileSize*2),
-				1280,
-				960,
-			)
-		}
+	g.camera.FollowTarget(g.player.Sprite, float64(screenWidth), float64(screenHeight), g)
+	g.camera.Constrain(floor, float64(screenWidth), float64(screenHeight), g)
 
-		for i, id := range layer.Data {
-			if id == 0 {
-				continue
-			}
+	g.DrawLayer(screen, floor, 0)
 
-			x := float64(i % layer.Width)
-			y := float64(i / layer.Height)
-			x *= g.renderedTileSize
-			y *= g.renderedTileSize
+	g.dynamicColliders = []entities.Collider{}
 
-			img := g.tilesets[n].Image(id, g.realTileSize, g.realTileSize)
-			offset := (float64(img.Bounds().Dy()) + g.realTileSize) * g.baseScale
+	g.DrawSprite(screen, g.player.Sprite)
+	g.dynamicColliders = append(g.dynamicColliders, entities.Collider{
+		Self: g.player.Sprite,
+		Rect: g.player.Rect(g.renderedTileSize),
+	})
 
-			g.drawOpts.GeoM.Scale(g.baseScale, g.baseScale)
-			g.drawOpts.GeoM.Translate(x, y-offset)
-			g.drawOpts.GeoM.Translate(g.camera.X, g.camera.Y)
+	for _, sprite := range g.items {
+		g.DrawSprite(screen, sprite.Sprite)
+	}
 
-			screen.DrawImage(img, &g.drawOpts)
+	for _, sprite := range g.enemies {
+		g.DrawSprite(screen, sprite.Sprite)
+		g.dynamicColliders = append(g.dynamicColliders, entities.Collider{
+			Self: sprite.Sprite,
+			Rect: sprite.Rect(g.renderedTileSize),
+		})
+	}
 
-			g.drawOpts.GeoM.Reset()
-
-			if layer.Name == "floor" {
-				g.dynamicColliders = []entities.Collider{}
-
-				g.DrawSprite(screen, g.player.Sprite)
-				g.dynamicColliders = append(g.dynamicColliders, entities.Collider{
-					Self: g.player.Sprite,
-					Rect: g.player.Rect(g.renderedTileSize),
-				})
-
-				for _, sprite := range g.items {
-					g.DrawSprite(screen, sprite.Sprite)
-				}
-
-				for _, sprite := range g.enemies {
-					g.DrawSprite(screen, sprite.Sprite)
-					g.dynamicColliders = append(g.dynamicColliders, entities.Collider{
-						Self: sprite.Sprite,
-						Rect: sprite.Rect(g.renderedTileSize),
-					})
-				}
-			}
-
-			if layer.Name == "objects" {
-				bottom := y - offset + (float64(img.Bounds().Dy()) * g.baseScale)
-				top := bottom - g.renderedTileSize*2 - g.renderedTileSize/4
-				width := float64(img.Bounds().Dx()) * g.baseScale
-
-				g.staticColliders = append(g.staticColliders, entities.Collider{
-					Self: nil,
-					Rect: image.Rect(
-						int(x),
-						int(top),
-						int(x+width),
-						int(bottom),
-					),
-				})
-			}
-		}
+	for n, layer := range layers {
+		g.DrawLayer(screen, layer, n+1)
 	}
 
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("%d", int(g.player.Health)))

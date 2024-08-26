@@ -1,5 +1,7 @@
 package entities
 
+import "math"
+
 type Character struct {
 	*Sprite
 	MaxHealth float64
@@ -8,5 +10,5 @@ type Character struct {
 }
 
 func (c *Character) EffectHealth(amount float64) {
-	// c.Health = math.Max(0, math.Min(c.MaxHealth, c.Health-amount))
+	c.Health = math.Max(0, math.Min(c.MaxHealth, c.Health-amount))
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	TPS := 60
+	TPS := 120
 
 	ebiten.SetTPS(TPS)
 	ebiten.SetWindowTitle("RPGo")
@@ -49,7 +49,7 @@ func main() {
 	realTileSize := float64(16)
 	baseScale := ebiten.Monitor().DeviceScaleFactor() * 1.5
 	game := Game{
-		baseVector:       float64(TPS / 20),
+		baseVector:       float64(210 / TPS),
 		baseScale:        baseScale,
 		realTileSize:     realTileSize,
 		renderedTileSize: realTileSize * baseScale,
@@ -71,7 +71,7 @@ func main() {
 		enemies: []*entities.Enemy{
 			{
 				Character: &entities.Character{
-					Sprite:    &entities.Sprite{Image: skeletonImg, X: 200.0, Y: 150.0, Speed: 0.5},
+					Sprite:    &entities.Sprite{Image: skeletonImg, X: 200.0, Y: 150.0, Speed: 0.75},
 					MaxHealth: 50,
 					Health:    50,
 					Damage:    5,
@@ -80,7 +80,7 @@ func main() {
 			},
 			{
 				Character: &entities.Character{
-					Sprite:    &entities.Sprite{Image: skeletonImg, X: 400.0, Y: 300.0, Speed: 0.5},
+					Sprite:    &entities.Sprite{Image: skeletonImg, X: 400.0, Y: 300.0, Speed: 0.75},
 					MaxHealth: 50,
 					Health:    50,
 					Damage:    5,
@@ -89,7 +89,7 @@ func main() {
 			},
 			{
 				Character: &entities.Character{
-					Sprite:    &entities.Sprite{Image: skeletonImg, X: 600.0, Y: 450.0, Speed: 0.5},
+					Sprite:    &entities.Sprite{Image: skeletonImg, X: 600.0, Y: 450.0, Speed: 0.75},
 					MaxHealth: 50,
 					Health:    50,
 					Damage:    5,
