@@ -48,21 +48,22 @@ func main() {
 
 	realTileSize := float64(16)
 	baseScale := ebiten.Monitor().DeviceScaleFactor() * 1.5
+	renderedTileSize := realTileSize * baseScale
 	game := Game{
 		baseVector:       float64(210 / TPS),
 		baseScale:        baseScale,
 		realTileSize:     realTileSize,
-		renderedTileSize: realTileSize * baseScale,
+		renderedTileSize: renderedTileSize,
 		tilemapJSON:      tilemap,
 		tilemapImg:       tilemapImg,
 		tilesets:         tilesets,
 		staticColliders:  []entities.Collider{},
 		dynamicColliders: []entities.Collider{},
-		camera:           NewCamera(0.0, 0.0),
+		camera:           &Camera{tileSize: renderedTileSize},
 		drawOpts:         ebiten.DrawImageOptions{},
 		player: &entities.Player{
 			Character: &entities.Character{
-				Sprite:    &entities.Sprite{Image: playerImg, X: 275.0, Y: 275.0, Speed: 1},
+				Sprite:    &entities.Sprite{Image: playerImg, X: 800.0, Y: 800.0, Speed: 1},
 				MaxHealth: 12,
 				Health:    8,
 				Damage:    1,

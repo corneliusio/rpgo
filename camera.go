@@ -7,25 +7,17 @@ import (
 )
 
 type Camera struct {
-	game *Game
-	X, Y float64
+	X, Y, tileSize float64
 }
 
-func NewCamera(x, y float64) *Camera {
-	return &Camera{
-		X: x,
-		Y: y,
-	}
+func (c *Camera) FollowSprite(sprite *entities.Sprite, screenWidth, screenHeight float64) {
+	c.X = -sprite.X + (screenWidth / 2) - (c.tileSize / 2)
+	c.Y = -sprite.Y + (screenHeight / 2) - (c.tileSize / 2)
 }
 
-func (c *Camera) FollowTarget(sprite *entities.Sprite, screenWidth, screenHeight float64, game *Game) {
-	c.X = -sprite.X + float64(game.renderedTileSize/2) + screenWidth/2
-	c.Y = -sprite.Y + float64(game.renderedTileSize/2) + screenHeight/2
-}
-
-func (c *Camera) Constrain(layer *TilemapLayerJSON, screenWidth, screenHeight float64, game *Game) {
-	tilemapWidth := (float64(layer.Width) * game.renderedTileSize)
-	tilemapHeight := (float64(layer.Height) * game.renderedTileSize) - (game.renderedTileSize * 2)
+func (c *Camera) ConstrainToLayer(layer *TilemapLayerJSON, screenWidth, screenHeight float64) {
+	tilemapWidth := (float64(layer.Width) * c.tileSize)
+	tilemapHeight := (float64(layer.Height-2) * c.tileSize)
 
 	c.X = math.Min(c.X, 0)
 	c.Y = math.Min(c.Y, 0)

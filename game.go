@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"log"
+	"math"
 
 	"github.com/corneliusio/rpgo/entities"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -17,6 +18,8 @@ type Game struct {
 	baseVector       float64
 	realTileSize     float64
 	renderedTileSize float64
+	screenWidth      int
+	screenHeight     int
 	camera           *Camera
 	player           *entities.Player
 	enemies          []*entities.Enemy
@@ -34,9 +37,13 @@ func (g *Game) DrawSprite(screen *ebiten.Image, sprite *entities.Sprite) {
 	g.drawOpts.GeoM.Translate(sprite.X, sprite.Y)
 	g.drawOpts.GeoM.Translate(g.camera.X, g.camera.Y)
 
+	tileSize := int(g.realTileSize)
+	x := 0
+	y := 0
+
 	screen.DrawImage(
 		sprite.Image.SubImage(
-			image.Rect(0, 0, int(g.realTileSize), int(g.realTileSize)),
+			image.Rect(x*tileSize, y*tileSize, (x+1)*tileSize, (y+1)*tileSize),
 		).(*ebiten.Image),
 		&g.drawOpts,
 	)
@@ -76,6 +83,11 @@ func (g *Game) CheckCollisionHorizontal(sprite *entities.Sprite) {
 			}
 		}
 	}
+
+	tilemapWidth := (float64(g.tilemapJSON.Layers[0].Width) * g.renderedTileSize)
+
+	sprite.X = math.Max(sprite.X, 0)
+	sprite.X = math.Min(sprite.X, tilemapWidth-g.renderedTileSize)
 }
 
 func (g *Game) CheckCollisionVertical(sprite *entities.Sprite) {
@@ -110,6 +122,11 @@ func (g *Game) CheckCollisionVertical(sprite *entities.Sprite) {
 			}
 		}
 	}
+
+	tilemapHeight := (float64(g.tilemapJSON.Layers[0].Height-2) * g.renderedTileSize)
+
+	sprite.Y = math.Max(sprite.Y, 0)
+	sprite.Y = math.Min(sprite.Y, tilemapHeight-g.renderedTileSize)
 }
 
 func (g *Game) UpdatePlayerVectors() {
@@ -201,6 +218,8 @@ func (g *Game) DrawLayer(screen *ebiten.Image, layer *TilemapLayerJSON, tsi int)
 }
 
 func (g *Game) Update() error {
+	g.screenWidth, g.screenHeight = ebiten.WindowSize()
+
 	g.UpdatePlayerVectors()
 	g.CheckCollisionHorizontal(g.player.Sprite)
 	g.CheckCollisionVertical(g.player.Sprite)
@@ -242,15 +261,18 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	screen.Fill(color.RGBA{120, 180, 255, 255})
-
-	screenWidth, screenHeight := ebiten.WindowSize()
 	floor, layers := g.tilemapJSON.Layers[0], g.tilemapJSON.Layers[1:]
 
-	g.camera.FollowTarget(g.player.Sprite, float64(screenWidth), float64(screenHeight), g)
-	g.camera.Constrain(floor, float64(screenWidth), float64(screenHeight), g)
+	g.camera.FollowSprite(g.player.Sprite, float64(g.screenWidth), float64(g.screenHeight))
+	g.camera.ConstrainToLayer(floor, float64(g.screenWidth), float64(g.screenHeight))
+
+	screen.Fill(color.RGBA{120, 180, 255, 255})
 
 	g.DrawLayer(screen, floor, 0)
+
+	for _, sprite := range g.items {
+		g.DrawSprite(screen, sprite.Sprite)
+	}
 
 	g.dynamicColliders = []entities.Collider{}
 
@@ -259,10 +281,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		Self: g.player.Sprite,
 		Rect: g.player.Rect(g.renderedTileSize),
 	})
-
-	for _, sprite := range g.items {
-		g.DrawSprite(screen, sprite.Sprite)
-	}
 
 	for _, sprite := range g.enemies {
 		g.DrawSprite(screen, sprite.Sprite)
